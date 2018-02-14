@@ -1,8 +1,22 @@
-
 import random
 import statistics
 import time
 import sys
+
+
+class fitness:
+    def __init__(self, numberSeqCount, totalGap):
+        self.numberSeqCount = numberSeqCount
+        self.totalGap = totalGap
+        
+    def __str__(self):
+        return 'nbSeq = {}\t totalGap = {} '.format(self.numberSeqCount, self.totalGap)
+    
+    def __gt__(self, other):
+        if self.numberSeqCount != other.numberSeqCount:
+            return self.numberSeqCount > other.numberSeqCount
+        else:
+            return self.totalGap < other.totalGap
 
 class Chromosome:
     def __init__(self, genes, fitness):
@@ -19,33 +33,43 @@ def _generate_parent(size, GeneSet, getFitness):
     while len(res) < size:
         length = min(size_field, size - len(res))
         res.extend(random.sample(GeneSet, length))
-    newgenes = ''.join(res)
-    newfitness = getFitness(newgenes)
-    return Chromosome(newgenes, newfitness)
+    newfitness = getFitness(res)
+    return Chromosome(res, newfitness)
 
 def _mutate(parent, GeneSet, getFitness):
     idx = random.randrange(0, len(parent))
     newGene, alternative = random.sample(GeneSet, 2)
     res = list(parent.Genes)
     res[idx] = alternative if newGene == res[idx] else newGene
-    newgenes = ''.join(res)
-    newfitness = getFitness(newgenes)
-    return Chromosome(newgenes, newfitness)
+    newfitness = getFitness(res)
+    return Chromosome(res, newfitness)
 
+
+def _generate_improvement(generateParent, newChild):
+    parent = generateParent()
+    yield parent
+    while True:
+        offspring = newChild(parent)
+        if parent.Fitness > offspring.Fitness:
+            continue
+        if not offspring.Fitness > parent.Fitness:
+            parent = offspring
+            continue
+        yield offspring
+        parent = offspring
+    
 def getBest(ltarget, GeneSet, getFitness, FnDisplay, optimalFitness):
     random.seed()
-    BestGuess = _generate_parent(ltarget, GeneSet, getFitness)
-    FnDisplay(BestGuess)
-    if BestGuess.Fitness >= optimalFitness:
-        return BestGuess
-    while True:
-        offspring = _mutate(BestGuess, GeneSet, getFitness)
-        if offspring.Fitness <= BestGuess.Fitness:
-            continue
-        FnDisplay(offspring)
-        if offspring.Fitness >= optimalFitness:
-            return offspring
-        BestGuess = offspring
+    def FnGenParent():
+        return _generate_parent(ltarget, GeneSet, getFitness)
+        
+    def FnNewChild(parent):
+        return  _mutate(parent, GeneSet, getFitness)
+    for improvement in _generate_improvement(FnGenParent, FnNewChild):
+        FnDisplay(improvement)
+        if not optimalFitness > improvement.Fitness:
+            return improvement
+
 
 class NullWriter():
     def write(self, s):
