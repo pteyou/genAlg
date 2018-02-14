@@ -39,10 +39,16 @@ def _generate_parent(size, GeneSet, getFitness):
 def _mutate(parent, GeneSet, getFitness):
     idx = random.randrange(0, len(parent))
     newGene, alternative = random.sample(GeneSet, 2)
-    res = list(parent.Genes)
+    res = parent.Genes[:]
     res[idx] = alternative if newGene == res[idx] else newGene
     newfitness = getFitness(res)
     return Chromosome(res, newfitness)
+
+def _mutate_custom(parent, custom_mutate, getFitness):
+    childGenes = parent.Genes[:]
+    custom_mutate(childGenes)
+    newfitness = getFitness(childGenes)
+    return Chromosome(childGenes, newfitness)
 
 
 def _generate_improvement(generateParent, newChild):
@@ -58,13 +64,18 @@ def _generate_improvement(generateParent, newChild):
         yield offspring
         parent = offspring
     
-def getBest(ltarget, GeneSet, getFitness, FnDisplay, optimalFitness):
+def getBest(ltarget, GeneSet, getFitness, FnDisplay, optimalFitness, custom_mutate=None):
     random.seed()
     def FnGenParent():
         return _generate_parent(ltarget, GeneSet, getFitness)
-        
-    def FnNewChild(parent):
-        return  _mutate(parent, GeneSet, getFitness)
+
+    if custom_mutate is None:
+        def FnNewChild(parent):
+            return  _mutate(parent, GeneSet, getFitness)
+    else:
+        def FnNewChild(parent):
+            return _mutate_custom(parent, custom_mutate, getFitness)
+
     for improvement in _generate_improvement(FnGenParent, FnNewChild):
         FnDisplay(improvement)
         if not optimalFitness > improvement.Fitness:
